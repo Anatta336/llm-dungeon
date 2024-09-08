@@ -1,8 +1,10 @@
 # Dungeon
 An LLM-powered text adventure game that attempts to have a coherent world model.
 
+![image](https://github.com/user-attachments/assets/3c89a7f3-89f0-4496-9f31-96fa93780302)
+
 ## Status
-Core loop isn't complete yet.
+Very early. Core game loop isn't implemented yet.
 
 ## Quickstart
 - Have Ollama installed and set up.
