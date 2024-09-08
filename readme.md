@@ -7,7 +7,7 @@ Core loop isn't complete yet.
 ## Quickstart
 - Have Ollama installed and set up.
 - `ollama serve`
-- `. ./build.sh && go build main.go && ./main`
+- `. ./build.sh && go build -o bin/main main.go && bin/main`
 
 ## Proposed Structure (not current implementation)
 ```mermaid

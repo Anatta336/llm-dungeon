@@ -7,32 +7,11 @@ import (
 )
 
 func main() {
-	// file, err := os.OpenFile("dungeon.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	// if err != nil {
-	// 	log.Fatalf("error opening log file: %v", err)
-	// }
-	// log.SetOutput(file)
 	log.Println("Starting.")
-	// defer file.Close()
 
 	prepareRoutes()
 
 	log.Fatal(http.ListenAndServe(":8087", nil))
-}
-
-func testCommand() {
-	command := "push the bed towards the door."
-
-	var msg llm.UserMessage = llm.UserMessage{
-		Content: command,
-	}
-	result, err := msg.DmProcess()
-	if err != nil {
-		log.Fatalf("error categorising message: %v", err)
-	}
-
-	log.Println("Message:", command)
-	log.Println("Result:", result)
 }
 
 func prepareRoutes() {
