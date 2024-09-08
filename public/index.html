@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon</title>
+    <style>
+        @font-face {
+            font-family: 'dos';
+            src: url('/static/dos-smooth.ttf') format('truetype');
+        }
+    </style>
+    <script type="module" src="/static/main.js"></script>
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+    <main>
+        <div class="row">
+            <!-- <div class="decorative-panel"></div> -->
+            <div id="output" class="screen glowing-text">You find yourself standing on a cold, damp floor, surrounded by the rough-hewn stone walls that make up this dismal dungeon cell. A sturdy wooden door is set into the north wall, its surface worn smooth in places. In the south east corner of the room, a wooden bedframe stands against the wall, with a straw mattress on top of it. On the floor nearby, you see a small wooden table holding a single candle that hasn't been lit yet. A pool of foul-smelling water occupies the south west corner of the cell.
+You have a small leather satchel slung over your shoulder, which contains a flint and steel set. What would you like to do?</div>
+        </div>
+
+        <div class="row">
+            <!-- <div class="decorative-panel"></div> -->
+            <textarea id="input" class="screen glowing-text" placeholder=">"></textarea>
+
+            <button id="submit">
+                <div class="icon emboss">
+                    ⏎
+                </div>
+            </button>
+        </div>
+    </main>
+    <footer>
+        Anything entered in this game may be recorded and used for improving the game.
+        Nothing is shared with third parties.
+        Please do not enter sensitive or personal information.
+    </footer>
+</body>
+</html>

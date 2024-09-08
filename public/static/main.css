@@ -1,0 +1,140 @@
+* {
+    /* This is a little silly, but completely clear base styles. */
+    all: unset;
+    display: block;
+    box-sizing: border-box;
+}
+head, script, style {
+    display: none;
+}
+body {
+    background-color: #a4c1de;
+    color: #272e36;
+    font-family: dos, monospace;
+    line-height: 1.35;
+    letter-spacing: -1px;
+    word-spacing: 7px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 100vh;
+    padding: 10px;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-size: 1.8em;
+  font-weight: 600;
+}
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+
+    max-width: 900px;
+    padding: 2px;
+    border-radius: 5px;
+    background: #1c1e22;
+}
+footer {
+    font-family: sans-serif;
+    font-size: 9px;
+    line-height: 1.0;
+    letter-spacing: 0px;
+    word-spacing: 0px;
+}
+.screen {
+    margin: 5px;
+    border-radius: 20px;
+    padding: 15px;
+    color: #ecf9ee;
+    caret-color: #ecf9ee;
+    background: radial-gradient(farthest-corner at 87% 34%, #d0e1ed30 0%, #00000000 90%),
+        radial-gradient(farthest-corner at 10% 10%, #1d0b0e 0%, #03121f 100%);
+    /* filter: blur(0.2px); */
+}
+.glowing-text {
+    color: #ecf9ee;
+    text-shadow: 0 0 5px #88f3bfa3;
+    /* filter: blur(0.2px); */
+}
+.glowing-text::selection {
+    color: #191d1fc2;
+    background-color: #b9bfbca8;
+    text-shadow: none;
+}
+.row {
+    display: flex;
+    flex-direction: row;
+}
+.decorative-panel {
+    flex: 1 0 90px;
+    background-color: #c4c4c1;
+    border-radius: 3px;
+    box-shadow: inset 1px 1px 2px 0px #ffffffe6,
+        inset -2px -2px 10px 0px #08091124,
+        inset 2px 2px 5px 0px #08091121;
+}
+#input {
+    min-height: 100px;
+    flex: 1 1 400px;
+    margin-top: 0;
+    overflow: auto;
+    resize: vertical;
+}
+#input::before {
+    content: "&gt;";
+    display: block;
+}
+#output {
+    min-height: 200px;
+    white-space: pre-wrap;
+    flex: 1 1 700px;
+    height: 400px;
+    overflow: auto;
+    resize: vertical;
+}
+button {
+    background-color: #c4c4c1;
+    border-radius: 3px;
+    box-shadow: inset 1px 1px 2px 0px #ffffffe6,
+        inset -2px -2px 10px 0px #08091124,
+        inset 2px 2px 5px 0px #08091121;
+    padding: 1rem;
+    cursor: pointer;
+}
+button:focus {
+    outline: revert;
+}
+button:hover {
+    background-color: #bbd4db;
+}
+button:hover .icon {
+    background: #e2e7ea;
+}
+button .icon {
+    height: 60px;
+    width: 60px;
+    border-radius: 50%;
+    margin: auto;
+    box-shadow: -3px -3px 10px 0px #ffffff73,
+        5px 5px 14px 0px #171a3196,
+        inset -2px -2px 12px 0px #17192f24,
+        inset 2px 2px 5px 0px #ffffff21;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 43px;
+}
+.emboss {
+    text-shadow: 0.5px 0.5px 2px #23293b57,
+        -0.5px -0.5px 2px #c2d2e0e0;
+}
