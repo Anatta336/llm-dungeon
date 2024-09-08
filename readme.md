@@ -11,32 +11,33 @@ Very early. Core game loop isn't implemented yet.
 - `ollama serve`
 - `. ./build.sh && go build -o bin/main main.go && bin/main`
 
-## Proposed Structure (not current implementation)
+## Structure
 ```mermaid
 graph TB
 
-world[("World model")]
-planChange[["LLM: Plan changes and description"]]
-check[["Code: Check consistency"]]
-applyChange[["Code: Apply changes"]]
 user(["User"])
+llmAdjudicate[["LLM: Adjudicate"]]
+world[("World model")]
+llmEncode[["LLM: Encode Actions"]]
+codeActions[["Code: Apply Actions (NYI)"]]
 
-user --"Freeform input"--> planChange
-world --> planChange
-world --> check
-planChange --"Planned changes"--> check
-check --"Error message"-->planChange
-check --"Confirmed changes"--> applyChange
-applyChange --"Update state"--> world
-applyChange --"Display description"--> user
+user --"Freeform input"--> llmAdjudicate
+world --> llmAdjudicate
+llmAdjudicate --"Freeform description"--> llmEncode
+world --> llmEncode
+llmEncode --"Encoded actions"--> codeActions
+world --> codeActions
+codeActions --"Update"--> world
+llmAdjudicate --"Freeform description"--> user
 ```
 
 ## Plan
 - Actually update `<world></world>` state.
 - Action encoder is doing odd things with notes.
     - Maybe remove those and include past descriptions in context?
-- Error message to adjudicate LLM step.
-    - Both syntax and "not allowed" errors.
+- Errors from applying actions?
+    - Syntax errors just need the action encoder to try again.
+    - Perhaps "not allowed" detection in code too? That'd have to start whole cycle again.
     - Keep looping until adjudicator plus action-encode give something valid.
     - Limit loop count presumably.
 - Some kind of player health/condition tracking?
