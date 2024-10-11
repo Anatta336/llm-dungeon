@@ -3,29 +3,37 @@ package main
 import (
 	"log"
 	"net/http"
-	"samdriver/dungeon/llm"
+	"samdriver/dungeon/config"
+	"samdriver/dungeon/dm"
 )
 
 func main() {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("Error loading config:", err)
+	}
+
 	log.Println("Starting.")
 
 	prepareRoutes()
 
-	log.Fatal(http.ListenAndServe(":8087", nil))
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, nil))
 }
 
 func prepareRoutes() {
-	http.HandleFunc("/input", func(writer http.ResponseWriter, request *http.Request) {
+	http.HandleFunc("POST /input", func(writer http.ResponseWriter, request *http.Request) {
 		log.Println("Processing input.")
 
-		err := llm.ReceiveInputHandler(writer, request)
+		err := dm.ReceiveInputHandler(writer, request)
 		if err != nil {
 			log.Println("Error processing input:", err)
 		}
 	})
 
 	// Static files.
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("public/static"))))
+	http.Handle("GET /static/{file}",
+		http.StripPrefix("/static/", http.FileServer(http.Dir("public/static"))),
+	)
 
 	// Index, with 404 for everything else.
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {

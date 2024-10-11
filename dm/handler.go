@@ -1,4 +1,4 @@
-package llm
+package dm
 
 import (
 	"encoding/json"
@@ -28,13 +28,9 @@ func ReceiveInputHandler(writer http.ResponseWriter, request *http.Request) erro
 		return err
 	}
 
-	// TODO: Provide world state to the LLMs.
+	// TODO: Provide live world state to the LLMs.
 
-	userMessage := &UserMessage{
-		Content: input.Content,
-	}
-
-	dmResult, err := userMessage.DmProcess()
+	dmResult, err := Process(input.Content)
 	if err != nil {
 		onError(writer, err)
 		return err

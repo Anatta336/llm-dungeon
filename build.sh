@@ -1,8 +1,4 @@
 #!/bin/bash
 set -e
 
-for file in ./models/*; do
-    ollama create "$(basename "$file")" -f "$file"
-done
-
-go build -o ./bin/dungeon ./main.go
+go build -o ./bin/main ./cmd/server/main.go

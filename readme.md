@@ -11,7 +11,7 @@ Very early. Core game loop isn't implemented yet.
 - `ollama serve`
 - `. ./build.sh && go build -o bin/main main.go && bin/main`
 
-## Structure
+## Process structure
 ```mermaid
 graph TB
 
