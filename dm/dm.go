@@ -1,23 +1,27 @@
 package dm
 
 import (
+	"encoding/json"
 	"fmt"
 	"samdriver/dungeon/llm"
+	"samdriver/dungeon/world"
 	"strings"
 )
 
 type DmResponseMessage struct {
 	UserInput          string `json:"user-input"`
+	InputState         world.State
 	RawAdjudicate      string `json:"raw-adjudicate"`
 	AdjudicateThoughts string `json:"adjudicate-thoughts"`
 	Description        string `json:"description"`
-	RawActionEncode    string `json:"raw-action-encode"`
-	Actions            string `json:"actions"`
+	RawEncode          string `json:"raw-action-encode"`
+	OutputState        world.State
 }
 
-func Process(input string) (DmResponseMessage, error) {
+func Process(state world.State, input string) (DmResponseMessage, error) {
 	resp := DmResponseMessage{
-		UserInput: input,
+		UserInput:  input,
+		InputState: state,
 	}
 	err := resp.fillDescription()
 	if err != nil {
@@ -34,10 +38,19 @@ func Process(input string) (DmResponseMessage, error) {
 
 func (dmResponse *DmResponseMessage) fillDescription() error {
 
+	stateJson, err := json.Marshal(dmResponse.InputState)
+	if err != nil {
+		return fmt.Errorf("error marshaling InputState to JSON: %v", err)
+	}
+
+	systemPrompt := adjudicateSystem + "\nCurrent world JSON:\n" + string(stateJson)
+
+	// TODO: include recent history of messages in context?
+
 	request := llm.Request{
-		System:      adjudicateSystem,
+		System:      systemPrompt,
 		User:        dmResponse.UserInput,
-		Model:       "llama3.2:3b",
+		Model:       "llama3.1:latest",
 		Temperature: 0.7,
 	}
 
@@ -47,23 +60,21 @@ func (dmResponse *DmResponseMessage) fillDescription() error {
 		return fmt.Errorf("error with Adjudicate LLM: %v", err)
 	}
 
-	thinkingStart := strings.Index(response.Result, "<thinking>")
-	thinkingEnd := strings.Index(response.Result, "</thinking>")
+	thinkingStart := strings.Index(response.Result, "THINKING:")
+	outputStart := strings.Index(response.Result, "OUTPUT:")
 	thoughts := func() string {
-		if thinkingStart == -1 || thinkingEnd == -1 {
+		if thinkingStart == -1 || outputStart == -1 {
 			return ""
 		}
-		return response.Result[thinkingStart+len("<thinking>") : thinkingEnd]
+		return response.Result[thinkingStart+len("THINKING:") : outputStart]
 	}()
 
-	outputStart := strings.Index(response.Result, "<output>")
-	outputEnd := strings.Index(response.Result, "</output>")
 	description := func() string {
-		if outputStart == -1 || outputEnd == -1 {
-			// Assume everything after the </thinking> is the description we want.
-			return response.Result[thinkingEnd+len("</thinking>"):]
+		if outputStart == -1 {
+			// Assume everything is the description we want.
+			return response.Result
 		}
-		return response.Result[outputStart+len("<output>") : outputEnd]
+		return response.Result[outputStart+len("OUTPUT:") : len(response.Result)]
 	}()
 
 	dmResponse.RawAdjudicate = response.Result
@@ -74,10 +85,17 @@ func (dmResponse *DmResponseMessage) fillDescription() error {
 }
 
 func (dmResponse *DmResponseMessage) fillEncodedActions() error {
+	stateJson, err := json.Marshal(dmResponse.InputState)
+	if err != nil {
+		return fmt.Errorf("error marshaling InputState to JSON: %v", err)
+	}
+
+	systemPrompt := actionEncodeSystem + "\nCurrent world JSON:\n" + string(stateJson)
+
 	request := llm.Request{
-		System:      actionEncodeSystem,
+		System:      systemPrompt,
 		User:        dmResponse.Description,
-		Model:       "llama3.2:3b",
+		Model:       "llama3.1:latest",
 		Temperature: 0.2,
 	}
 
@@ -87,249 +105,82 @@ func (dmResponse *DmResponseMessage) fillEncodedActions() error {
 		return fmt.Errorf("error with action encode LLM: %v", err)
 	}
 
-	thinkingStart := strings.Index(response.Result, "<thinking>")
-	thinkingEnd := strings.Index(response.Result, "</thinking>")
+	thinkingStart := strings.Index(response.Result, "THINKING:")
+	outputStart := strings.Index(response.Result, "OUTPUT:")
 	thoughts := func() string {
-		if thinkingStart == -1 || thinkingEnd == -1 {
+		if thinkingStart == -1 || outputStart == -1 {
 			return ""
 		}
-		return response.Result[thinkingStart+len("<thinking>") : thinkingEnd]
+		return response.Result[thinkingStart+len("THINKING:") : outputStart]
 	}()
 
-	outputStart := strings.Index(response.Result, "<output>")
-	outputEnd := strings.Index(response.Result, "</output>")
-	actions := func() string {
-		if outputStart == -1 || outputEnd == -1 {
+	jsonString := func() string {
+		if outputStart == -1 {
+			// Invalid, so make no changes.
 			return ""
 		}
-		return response.Result[outputStart+len("<output>") : outputEnd]
+		return response.Result[outputStart+len("OUTPUT:") : len(response.Result)]
 	}()
 
-	dmResponse.RawActionEncode = response.Result
+	var newState world.State
+	err = json.Unmarshal([]byte(jsonString), &newState)
+	if err != nil {
+		// Invalid JSON, so make no changes.
+		newState = dmResponse.InputState
+	}
+
+	dmResponse.RawEncode = response.Result
+	dmResponse.InputState = newState
 	dmResponse.AdjudicateThoughts = thoughts
-	dmResponse.Actions = actions
+	dmResponse.OutputState = newState
 
 	return nil
 }
 
 const adjudicateSystem = `
-You are a world-class AI system playing the role of a dungeon master in a text adventure game, capable of complex reasoning and reflection.
+You are playing the role of a dungeon master in a text-based role-playing game. Your job is to adjudicate the actions of the player and describe the world around them based on the provided world state.
 
-Always start your response with <thinking></thinking> tags where you reason through the user's request. This reasoning should include if what they're asking for is possible.
-Check over your reasoning and correct any mistakes.
-After the </thinking> section completes, provide your final response inside <output> tags.
-The user will only see the <output></output> section so make sure it includes everything they need to see.
+**Instructions**:
 
-You may make some lighthearted remarks to keep the game fun. Do not make any sexually suggestive content.
-You are not a general purpose assistant.
+- **THINKING**:
+  - Begin each response with "THINKING:" followed by your internal reasoning.
+  - Consider what the player is trying to achieve and whether it is possible given the world state information and the abilities of the player's character.
+  - **Do not** add actions beyond what the player is specifically asking for.
+  - Plan the consequences of the player's actions, including any changes to the world.
+  - This section is **not** shown to the player.
 
-You help the user by telling them about the game world that is described within <world></world> tags.
-If the <world></world> state indicate that an item cannot be seen (for example if it is inside a closed container) do not mention it to the player in your output.
-Stay in character and avoid mentioning "the description", instead just say that something isn't possible or can't be found.
-Allow the user to make choices about what their character will do. Do not suggest actions.
-Refer to the user as "you".
-Give realistic consequences to attempted actions, obeying information given in the <world></world> tags.
-If a user attempts to do something impossible given the situation that has been described, DO NOT agree with them. Instead explain why it is not possible.
-You must only reference objects, characters, and locations that are included within the <world></world> tags.
+- **OUTPUT**:
+  - After the "THINKING:" section, write "OUTPUT:" followed by the description presented to the player.
+  - Stay in character as the dungeon master.
+  - Refer to the player as "you".
+  - Describe the results of the player's actions and the state of the world.
+  - Do not suggest actions; allow the player to decide their next move.
+  - Provide realistic consequences based on the world state.
+  - Do not reject actions due to danger; allow the player to take risks.
+  - If an action is impossible, gently explain why.
 
-<world>
-{
-    "meta-setting": "Realistic historical fiction set in the 17th Century. There is no magic in this setting."
-    "environment": "A damp dungeon cell. Walls, floor, and roof all made of rough cut stone.",
-    "player": {
-        "wearing": [
-            "skirt",
-            "shirt",
-        ],
-        "carrying": [
-            "small leather satchel": {
-                "contains": [
-                    "flint and steel",
-                ],
-            },
-        ],
-        "description": [
-            "tall woman",
-        ],
-    },
-    "scene": [
-        "north wall": {
-            "in it": [
-                "sturdy wooden door": {
-                    "location": "middle",
-                },
-            ],
-        },
-        "floor": {
-            "on it": [
-                "wooden bedframe": {
-                    "on it": [
-                        "straw mattress": {
-                            "in it": [
-                                "loose straw": {
-                                    "in it": [
-                                        "cell key",
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                    "location": {
-                        "south east corner",
-                    }
-                },
-                "wooden table": {
-                    "on it": [
-                        "candle",
-                    ],
-                },
-                "pool of foul water": {
-                    "location": {
-                        "south west corner",
-                    },
-                },
-            ],
-        },
-    ],
-    "item details": [
-        "flint and steel": {
-            "interactions": [
-                "can set flammable items on fire"
-            ],
-        },
-        "sturdy wooden door": {
-            "state": [
-                "locked",
-            ],
-            "interactions: [
-                "can be opened with the cell key",
-            ],
-            "notes": [
-                "a very small gap between the door and floor allows in a little light",
-            ]
-            "location": "middle",
-        },
-        "candle": {
-            "state": [
-                "unlit",
-            ],
-        },
-    ],
-}
-</world>
+- Only reference objects, characters, and locations included in the world state.
+- Only provide details about objects the player is specifically asking about.
+- Only describe actions the player specifically requests. Do not provide extra information or actions.
+- Be sure to mention anything in the scene that presents an immediate danger to the player.
+- As well as the player's direct actions, also consider what any active objects in the scene might be doing.
 `
 
 const actionEncodeSystem = `
-You are a world-class AI system capable of complex reasoning and reflection. Your purpose is to turn provided text into a set of specially encoded statements.
+Your task is to update the JSON representation of the world state based on new descriptions provided. Read the input description and modify the world state accordingly. Ensure that any changes, additions, or removals are accurately reflected in the JSON.
 
-Always start your response with <thinking></thinking> tags where you reason through how you will encode the request.
-Check over your reasoning to correct any mistakes and note if any statements aren't actually needed.
-After the </thinking> section completes, provide your final response inside <output> tags.
-Inside the <output></output> tags should only be specially encoded actions.
-When actions correspond with items in the world, you should use the same name they have in the <world></world> tags.
+**Instructions**:
+- **THINKING**:
+  - Begin each response with "THINKING:" followed by your internal reasoning.
+  - Consider the description provided and how it should be reflected in changes to the world state.
 
-The only valid encode statements are:
+- **OUTPUT**:
+  - After the "THINKING:" section, write "OUTPUT:" followed by the updated JSON representation of the world state.
+  - Ensure that the JSON structure is maintained.
+  - If the description mentions new items, add them to the appropriate section of the JSON.
+  - If items are removed, remove them from the JSON.
+  - Remove any descriptions that are no longer accurate.
+  - The JSON should be the only text after "OUTPUT:".
 
-- 'move {item} {location}' when an item changes its location in the scene.
-- 'set state {item} {state}' when some ongoing state about an object changes.
-- 'unset state {item} {state}' when state or information no longer applies to an object.
-- 'add note {item} {note}' when the provided text reveals new information about the object that's not already implicitly provided in the <world></world> description.
-- 'add {item} {location}' when a completely new item is introduced into the scene. Only use this if there is definitely a new item.
-- 'remove {item}' when an item is completely destroyed or removed from the scene.
-
-Some examples of properly encoded actions:
-- The player picks up a stone off the ground: 'move "stone" "player"."carrying"."stone"'
-- Stone leaves the scene completely (only use this if the item is completely gone, not just moved somewhere else): 'remove "stone"'
-- Stone is moved from the floor to a desk: 'move "stone" "scene"."floor"."on it"."desk"."on it"'
-- Shirt the player is wearing is splashed with water: 'set state "shirt" "wet"'
-- Stone becomes hot: 'set state "stone" "hot"'
-- Candle that was lit is extinguished: 'unset state "candle" "lit" set state "candle" "unlit"'
-- Chest is described as being inlaid with gold decorations: 'add note "chest" "inlaid with gold decorations"'
-- Chest is unlocked and opened: 'clear state "chest" "locked" set state "chest" "open"'
-
-<world>
-{
-    "meta-setting": "Realistic historical fiction set in the 17th Century. There is no magic in this setting."
-    "environment": "A damp dungeon cell. Walls, floor, and roof all made of rough cut stone.",
-    "player": {
-        "wearing": [
-            "skirt",
-            "shirt",
-        ],
-        "carrying": [
-            "small leather satchel": {
-                "contains": [
-                    "flint and steel",
-                ],
-            },
-        ],
-        "description": [
-            "tall woman",
-        ],
-    },
-    "scene": [
-        "north wall": {
-            "in it": [
-                "sturdy wooden door": {
-                    "location": "middle",
-                },
-            ],
-        },
-        "floor": {
-            "on it": [
-                "wooden bedframe": {
-                    "on it": [
-                        "straw mattress": {
-                            "in it": [
-                                "loose straw": {
-                                    "in it": [
-                                        "cell key",
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                    "location": {
-                        "south east corner",
-                    }
-                },
-                "wooden table": {
-                    "on it": [
-                        "candle",
-                    ],
-                },
-                "pool of foul water": {
-                    "location": {
-                        "south west corner",
-                    },
-                },
-            ],
-        },
-    ],
-    "item details": [
-        "flint and steel": {
-            "interactions": [
-                "can set flammable items on fire"
-            ],
-        },
-        "sturdy wooden door": {
-            "state": [
-                "locked",
-            ],
-            "interactions: [
-                "can be opened with the cell key",
-            ],
-            "notes": [
-                "a very small gap between the door and floor allows in a little light",
-            ]
-            "location": "middle",
-        },
-        "candle": {
-            "state": [
-                "unlit",
-            ],
-        },
-    ],
-}
-</world>
+- Only change the world state if new information is provided or changes to the scene, objects, or characters are described.
 `

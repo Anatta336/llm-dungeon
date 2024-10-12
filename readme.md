@@ -32,16 +32,8 @@ llmAdjudicate --"Freeform description"--> user
 ```
 
 ## Plan
-- Actually update `<world></world>` state.
-- Action encoder is doing odd things with notes.
-    - Maybe remove those and include past descriptions in context?
-- Errors from applying actions?
-    - Syntax errors just need the action encoder to try again.
-    - Perhaps "not allowed" detection in code too? That'd have to start whole cycle again.
-    - Keep looping until adjudicator plus action-encode give something valid.
-    - Limit loop count presumably.
+- Do not rely on LLM to update JSON manually. Instead have it provide a diff.
+- Convince the adjudicator to stop inventing objects.
 - Some kind of player health/condition tracking?
-    - Something more interesting that can take advantage of LLM fuzzy reasoning - Joie de vivre?
-- Sanitise player input, remove `<world>` tags if given.
-- Normally block narrator from giving clues, but from code side add them in if they appear stuck?
+    - Something more interesting that can take advantage of LLM reasoning.
 - Anything to optimise LLM steps.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"samdriver/dungeon/world"
 )
 
 type inputRequest struct {
@@ -14,41 +15,40 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-func ReceiveInputHandler(writer http.ResponseWriter, request *http.Request) error {
-
+func ReceiveInputHandler(
+	state world.State,
+	writer http.ResponseWriter,
+	request *http.Request,
+) (*world.State, error) {
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
-		return http.ErrNotSupported
+		return nil, http.ErrNotSupported
 	}
 
 	var input inputRequest
 	err := json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
 		onError(writer, err)
-		return err
+		return nil, err
 	}
 
-	// TODO: Provide live world state to the LLMs.
-
-	dmResult, err := Process(input.Content)
+	dmResult, err := Process(state, input.Content)
 	if err != nil {
 		onError(writer, err)
-		return err
+		return nil, err
 	}
 
 	log.Println("Adjudicate:", dmResult.RawAdjudicate)
-	log.Println("Encode:", dmResult.RawActionEncode)
-
-	// TODO: Apply encoded actions to the game state.
+	log.Println("Encode:", dmResult.RawEncode)
 
 	writer.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(writer).Encode(dmResult)
 	if err != nil {
 		onError(writer, err)
-		return err
+		return nil, err
 	}
 
-	return nil
+	return &dmResult.OutputState, nil
 }
 
 func onError(writer http.ResponseWriter, err error) {

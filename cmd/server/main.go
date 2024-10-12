@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"samdriver/dungeon/config"
 	"samdriver/dungeon/dm"
+	"samdriver/dungeon/world"
 )
+
+var state world.State = world.DungeonCell()
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -24,9 +27,13 @@ func prepareRoutes() {
 	http.HandleFunc("POST /input", func(writer http.ResponseWriter, request *http.Request) {
 		log.Println("Processing input.")
 
-		err := dm.ReceiveInputHandler(writer, request)
+		newState, err := dm.ReceiveInputHandler(state, writer, request)
 		if err != nil {
 			log.Println("Error processing input:", err)
+		}
+
+		if newState != nil {
+			state = *newState
 		}
 	})
 
